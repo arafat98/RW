@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Find My Mosques</title>
+
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+
+
+    <!-- Leaflet.js library to display the map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* styling for the map in the webpage*/
+        #map{
+            height: 400px;
+            width: 100%;
+            margin: 0 auto;
+            border: 8px solid black;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+<div class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <!-- Title  -->
+    <h1 class="text-4xl font-bold text-center mb-6">Find My Mosques</h1>
+        <!-- Prayer times -->
+        <div id="prayer-times" class="text-sm text-gray-700 bg-white p-4 rounded shadow">
+            <!-- Loading until data is retrieved from API -->
+        <p>Loading Prayer Times </p>
+        </div>
+    </div>
+<!-- Search feature space -->
+<form action ="/" method = "get" class="flex justify-center">
+    <input type="text" name = "q" placeholder = "Search Preferred Mosques" th:value = "${q}" class="w-1/2 px-4 py-2 border border-gray-300 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    <button type="submit" class="px-4 py-2 bg-blue-500 text-white font-medium rounded-r hover:bg-blue-600 focus:outline-none">Search</button>
+</form>
+
+    <!-- Main Content: Sidebar List & Map -->
+<div class="flex flex-col md:flex-row"> <!-- Tailwind: Stack vertically on small screens; horizontally on medium+ screens -->
+
+<!-- Mosque List sidebar -->
+<div class="md:w-1/3 p-4 border-r border-gray-200 overflow-y-auto" style="max-height: 500px;">
+<!-- Mosques List -->
+
+    <ul>
+        <li th:each="mosque : ${mosques}" class="mb-4"> <!-- Tailwind: Bottom margin for each list item -->
+            <h2 class="text-xl font-semibold" th:text="${mosque.name}">Mosque Name</h2> <!-- Tailwind: Extra-large, bold title -->
+            <p class="text-gray-600" th:text="${mosque.address}">Address</p> <!-- Tailwind: Gray text for address -->
+        </li>
+    </ul>
+</div>
+
+<!-- Map -->
+<div class="md:w-2/3 p-4">
+<div id="map" class="rounded shadow-lg"></div>
+</div>
+</div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var map = L.map('map').setView([51.5155, -0.0720], 13); // coordinates of Tower Hamlets
+
+    // Load openstreet map
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '@ OpenStreetMap'}).addTo(map);
+
+
+
+    //covert Thymeleaf data to javascript array
+
+    var mosques = /*[[${mosques}]]*/ [];
+    console.log("mosques from Thymeleaf:", mosques);
+    //checking if the array has the data
+    if (Array.isArray(mosques) && mosques.length > 0) {
+        mosques.forEach(function(mosque) {
+            if (mosque.latitude && mosque.longitude) { // checks to see if the coordinates are present
+                console.log(mosque.name,mosque.address,mosque.latitude,mosque.longitude);
+                L.marker([mosque.latitude, mosque.longitude])
+                    .addTo(map)// adds points in the mapp
+                    .bindPopup(`<b>${mosque.name}</b><br>${mosque.address}<br>${mosque.postcode}<br>${mosque.contactNumber || 'No contact available'} <br>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${mosque.latitude},${mosque.longitude}&travelmode=driving" target="_blank">
+                  Get Directions
+               </a>`);
+
+            }
+        });
+        } else {
+        console.error('No mosques', mosques);
+    }
+    <!-- API for the praying time Hanafi School London -->
+    fetch("https://api.aladhan.com/v1/timingsByCity?city=London&country=UK&method=2&school=1")
+        .then(function(response) {
+            return response.json();
+        })
+    .then(function(data) {
+        //timings for each prayers extraction
+        var timings = data.data.timings;
+        //showing the timing in html
+        var prayerTimes = `<h2 class="text-lg font-semibold">Prayer Times</h2>`;
+        prayerTimes += `<p><strong>Fajr:</strong> ${timings.Fajr}</p>`;
+        prayerTimes += `<p><strong>Dhuhr:</strong> ${timings.Dhuhr}</p>`;
+        prayerTimes += `<p><strong>Asr:</strong> ${timings.Asr}</p>`;
+        prayerTimes += `<p><strong>Maghrib:</strong> ${timings.Maghrib}</p>`;
+        prayerTimes += `<p><strong>Isha:</strong> ${timings.Isha}</p>`;
+        //replacing the loading text with the praying times
+        document.getElementById('prayer-times').innerHTML = prayerTimes;
+    }).catch(function(error) {
+        console.error("Error", error);
+        //error message if cannot retrieve praying times
+        document.getElementById('prayer-times').innerHTML = "<p>Error 404 cannot show Praying times.</p>";
+
+    });
+    /*]]>*/
+</script>
+
+
+</body>
+</html>
